@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+    <schema id="org.gnome.shell.extensions.tmux-indicator" path="/org/gnome/shell/extensions/tmux-indicator/">
+        <key name="terminal-emulator" type="s">
+            <default>'gnome-terminal'</default>
+            <summary>Terminal Emulator</summary>
+            <description>Path to the terminal emulator to use.</description>
+        </key>
+        <key name="terminal-command-flag" type="s">
+            <default>'--'</default>
+            <summary>Terminal Command Flag</summary>
+            <description>The flag or format to pass the command to the terminal emulator (e.g., -- for gnome-terminal, -e for wezterm, none for foot).</description>
+        </key>
+    </schema>
+</schemalist>
