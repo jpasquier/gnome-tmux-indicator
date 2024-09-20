@@ -1,11 +1,13 @@
-const { St, Clutter, Gio, GLib } = imports.gi;
+const { St, Clutter, Gio, GLib, Meta } = imports.gi;
 const Main = imports.ui.main;
 const PanelMenu = imports.ui.panelMenu;
 const PopupMenu = imports.ui.popupMenu;
 const ExtensionUtils = imports.misc.extensionUtils;
 const GObject = imports.gi.GObject;
+const Shell = imports.gi.Shell;
 
-let tmuxIndicator;
+let tmuxIndicator, settings;
+let keyBindingActive = false;  // Track whether the keybinding is active
 
 const TmuxIndicator = GObject.registerClass(
 class TmuxIndicator extends PanelMenu.Button {
@@ -65,13 +67,16 @@ class TmuxIndicator extends PanelMenu.Button {
     }
 
     _getTerminalEmulator() {
-        let settings = ExtensionUtils.getSettings('org.gnome.shell.extensions.tmux-indicator');
         return settings.get_string('terminal-emulator');
     }
 
     _getTerminalCommandFlag() {
-        let settings = ExtensionUtils.getSettings('org.gnome.shell.extensions.tmux-indicator');
         return settings.get_string('terminal-command-flag');
+    }
+
+    _openMenuWithKeyboard() {
+        this.menu.toggle(); // Open or close the menu
+        this.menu.actor.grab_key_focus(); // Allow navigation with arrow keys
     }
 
     destroy() {
@@ -83,11 +88,46 @@ class TmuxIndicator extends PanelMenu.Button {
     }
 });
 
+function _addKeybinding() {
+    if (keyBindingActive) return;  // Avoid re-adding the keybinding
+    let keybinding = 'tmux-indicator-shortcut';
+    let accelerator = settings.get_strv(keybinding)[0];
+    if (!accelerator || accelerator == '') return; // No keybinding set
+    Main.wm.addKeybinding(
+        keybinding,
+        settings,
+        Meta.KeyBindingFlags.NONE,
+        Shell.ActionMode.NORMAL,
+        () => {
+            if (tmuxIndicator) {
+                tmuxIndicator._openMenuWithKeyboard();
+            }
+        }
+    );
+    keyBindingActive = true;  // Mark keybinding as active
+}
+
+function _removeKeybinding() {
+    if (!keyBindingActive) return;  // Avoid removing if it's not active
+    let keybinding = 'tmux-indicator-shortcut';
+    Main.wm.removeKeybinding(keybinding);
+    keyBindingActive = false;  // Mark keybinding as inactive
+}
+
 function init() {}
 
 function enable() {
+    settings = ExtensionUtils.getSettings('org.gnome.shell.extensions.tmux-indicator');
     tmuxIndicator = new TmuxIndicator();
     Main.panel.addToStatusArea('tmux-indicator', tmuxIndicator);
+
+    _addKeybinding();
+
+    // Watch for changes in the shortcut settings
+    settings.connect('changed::tmux-indicator-shortcut', () => {
+        _removeKeybinding();
+        _addKeybinding();
+    });
 }
 
 function disable() {
@@ -95,4 +135,5 @@ function disable() {
         tmuxIndicator.destroy();
         tmuxIndicator = null;
     }
+    _removeKeybinding();
 }

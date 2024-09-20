@@ -2,7 +2,8 @@
     "uuid": "tmux-indicator@jpasquier.github.com",
     "name": "Tmux Indicator",
     "description": "Shows an indicator if there is at least one tmux session running",
-    "version": 1,
+    "version": 2,
     "shell-version": [ "43", "44", "45", "46", "47"],
-    "settings-schema": "org.gnome.shell.extensions.tmux-indicator"
+    "settings-schema": "org.gnome.shell.extensions.tmux-indicator",
+    "url": "https://github.com/jpasquier/gnome-tmux-indicator"
 }

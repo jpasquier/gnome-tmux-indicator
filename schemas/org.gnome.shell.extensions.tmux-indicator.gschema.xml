@@ -11,5 +11,14 @@
             <summary>Terminal Command Flag</summary>
             <description>The flag or format to pass the command to the terminal emulator (e.g., -- for gnome-terminal, -e for wezterm, none for foot).</description>
         </key>
+        <key name="tmux-indicator-shortcut" type="as">
+            <default>
+                <![CDATA[
+                ['<Super>space']
+                ]]>
+            </default>
+            <summary>Keybinding for the Tmux Indicator</summary>
+            <description>Keybinding that triggers the Tmux Indicator menu</description>
+        </key>
     </schema>
 </schemalist>
