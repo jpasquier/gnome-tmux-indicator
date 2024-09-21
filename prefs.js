@@ -44,7 +44,6 @@ function buildPrefsWidget() {
 
     shortcutEntry.connect('changed', (entry) => {
         const newShortcut = entry.text.trim();
-        // Optionally validate the shortcut here
         settings.set_strv('tmux-indicator-shortcut', [newShortcut]);
     });
 

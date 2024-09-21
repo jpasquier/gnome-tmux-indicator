@@ -1,4 +1,5 @@
 const { St, Clutter, Gio, GLib, Meta } = imports.gi;
+const MainLoop = imports.mainloop;
 const Main = imports.ui.main;
 const PanelMenu = imports.ui.panelMenu;
 const PopupMenu = imports.ui.popupMenu;
@@ -8,6 +9,7 @@ const Shell = imports.gi.Shell;
 
 let tmuxIndicator, settings;
 let keyBindingActive = false;  // Track whether the keybinding is active
+let updateInProgress = false;  // Track if update is in progress
 
 const TmuxIndicator = GObject.registerClass(
 class TmuxIndicator extends PanelMenu.Button {
@@ -27,23 +29,43 @@ class TmuxIndicator extends PanelMenu.Button {
     }
 
     _updateIndicator() {
-        let [success, output] = GLib.spawn_command_line_sync('tmux list-sessions');
-        if (success && output.length > 0) {
-            this.menu.removeAll();
-            let sessions = String.fromCharCode.apply(null, output).split("\n").filter(s => s.trim() !== '');
+        if (updateInProgress) return;  // Prevent overlapping calls
+        updateInProgress = true;  // Mark as in progress
 
-            // Add tmux sessions to the dropdown menu
-            sessions.forEach(session => {
-                let sessionMenuItem = new PopupMenu.PopupMenuItem(session.split(':')[0]);
-                sessionMenuItem.connect('activate', () => {
-                    this._openSession(session);
-                });
-                this.menu.addMenuItem(sessionMenuItem);
-            });
-            this.actor.show();
-        } else {
-            this.actor.hide();
-        }
+        let process = new Gio.Subprocess({
+            argv: ['tmux', 'list-sessions'],
+            flags: Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_PIPE,
+        });
+
+        process.init(null);
+
+        process.communicate_utf8_async(null, null, (proc, res) => {
+            try {
+                let [ok, stdout, stderr] = proc.communicate_utf8_finish(res);
+
+                if (ok && stdout.trim().length > 0) {
+                    this.menu.removeAll();
+                    let sessions = stdout.trim().split("\n").filter(s => s.trim() !== '');
+                    sessions.forEach(session => {
+                        let sessionName = session.split(':')[0];
+                        let sessionMenuItem = new PopupMenu.PopupMenuItem(sessionName);
+                        sessionMenuItem.connect('activate', () => {
+                            this._openSession(session);
+                        });
+                        this.menu.addMenuItem(sessionMenuItem);
+                    });
+                    this.actor.show();
+                } else {
+                    this.actor.hide();
+                }
+            } catch (e) {
+                logError(e);
+                this.actor.hide();
+            } finally {
+                updateInProgress = false;  // Mark as complete
+            }
+        });
+
         return true;  // Returning true to keep the timeout alive
     }
 
@@ -136,4 +158,5 @@ function disable() {
         tmuxIndicator = null;
     }
     _removeKeybinding();
+    settings = null;  // Nullify settings to prevent memory leaks
 }
