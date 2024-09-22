@@ -1,5 +1,4 @@
 const { St, Clutter, Gio, GLib, Meta } = imports.gi;
-const MainLoop = imports.mainloop;
 const Main = imports.ui.main;
 const PanelMenu = imports.ui.panelMenu;
 const PopupMenu = imports.ui.popupMenu;
@@ -54,13 +53,13 @@ class TmuxIndicator extends PanelMenu.Button {
                         });
                         this.menu.addMenuItem(sessionMenuItem);
                     });
-                    this.actor.show();
+                    this.show();
                 } else {
-                    this.actor.hide();
+                    this.hide();
                 }
             } catch (e) {
                 logError(e);
-                this.actor.hide();
+                this.hide();
             } finally {
                 updateInProgress = false;  // Mark as complete
             }
@@ -98,7 +97,11 @@ class TmuxIndicator extends PanelMenu.Button {
 
     _openMenuWithKeyboard() {
         this.menu.toggle(); // Open or close the menu
-        this.menu.actor.grab_key_focus(); // Allow navigation with arrow keys
+
+        let menuItems = this.menu._getMenuItems();
+        if (menuItems.length > 0) {
+            menuItems[0].grab_key_focus(); // Set focus to the first menu item
+        }
     }
 
     destroy() {
