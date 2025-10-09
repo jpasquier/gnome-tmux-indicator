@@ -138,7 +138,7 @@ function _removeKeybinding() {
 
 export default class TmuxIndicatorExtension extends Extension {
     enable() {
-        settings = this.getSettings('org.gnome.shell.extensions.tmux-indicator');
+        settings = this.getSettings();
         tmuxIndicator = new TmuxIndicator();
         Main.panel.addToStatusArea('tmux-indicator', tmuxIndicator);
 

@@ -7,7 +7,7 @@ import {ExtensionPreferences} from 'resource:///org/gnome/Shell/Extensions/js/ex
 
 export default class TmuxIndicatorPreferences extends ExtensionPreferences {
     fillPreferencesWindow(window) {
-        const settings = this.getSettings('org.gnome.shell.extensions.tmux-indicator');
+        const settings = this.getSettings();
 
         const page = new Adw.PreferencesPage();
         const group = new Adw.PreferencesGroup({
