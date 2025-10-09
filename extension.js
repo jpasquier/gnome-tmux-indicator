@@ -1,21 +1,26 @@
-const { St, Clutter, Gio, GLib, Meta } = imports.gi;
-const Main = imports.ui.main;
-const PanelMenu = imports.ui.panelMenu;
-const PopupMenu = imports.ui.popupMenu;
-const ExtensionUtils = imports.misc.extensionUtils;
-const GObject = imports.gi.GObject;
-const Shell = imports.gi.Shell;
+import St from 'gi://St';
+import Clutter from 'gi://Clutter';
+import Gio from 'gi://Gio';
+import GLib from 'gi://GLib';
+import GObject from 'gi://GObject';
+import Meta from 'gi://Meta';
+import Shell from 'gi://Shell';
+
+import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
+import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
+
+import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 
 let tmuxIndicator, settings;
-let keyBindingActive = false;  // Track whether the keybinding is active
-let updateInProgress = false;  // Track if update is in progress
+let keyBindingActive = false;
+let updateInProgress = false;
 
 const TmuxIndicator = GObject.registerClass(
 class TmuxIndicator extends PanelMenu.Button {
     _init() {
         super._init(0.0, 'Tmux Indicator', false);
 
-        // Create the icon for the indicator
         let icon = new St.Icon({
             icon_name: 'utilities-terminal-symbolic',
             style_class: 'system-status-icon',
@@ -28,8 +33,8 @@ class TmuxIndicator extends PanelMenu.Button {
     }
 
     _updateIndicator() {
-        if (updateInProgress) return;  // Prevent overlapping calls
-        updateInProgress = true;  // Mark as in progress
+        if (updateInProgress) return true;
+        updateInProgress = true;
 
         let process = new Gio.Subprocess({
             argv: ['tmux', 'list-sessions'],
@@ -58,49 +63,40 @@ class TmuxIndicator extends PanelMenu.Button {
                     this.hide();
                 }
             } catch (e) {
-                logError(e);
+                console.error('Tmux Indicator:', e);
                 this.hide();
             } finally {
-                updateInProgress = false;  // Mark as complete
+                updateInProgress = false;
             }
         });
 
-        return true;  // Returning true to keep the timeout alive
+        return true;
     }
 
     _openSession(session) {
-        let terminalEmulator = this._getTerminalEmulator();
-        let commandFlag = this._getTerminalCommandFlag();
+        let terminalEmulator = settings.get_string('terminal-emulator');
+        let commandFlag = settings.get_string('terminal-command-flag');
+
         if (terminalEmulator) {
             let sessionName = session.split(':')[0];
             let command;
             if (commandFlag === '') {
-                // For terminals like foot that don't use flags for commands
                 command = `${terminalEmulator} tmux attach-session -t ${sessionName}`;
             } else {
-                // For terminals like gnome-terminal that need the flag
                 command = `${terminalEmulator} ${commandFlag} tmux attach-session -t ${sessionName}`;
             }
             GLib.spawn_command_line_async(command);
         } else {
-            log("No terminal emulator configured.");
+            console.log("No terminal emulator configured.");
         }
     }
 
-    _getTerminalEmulator() {
-        return settings.get_string('terminal-emulator');
-    }
-
-    _getTerminalCommandFlag() {
-        return settings.get_string('terminal-command-flag');
-    }
-
     _openMenuWithKeyboard() {
-        this.menu.toggle(); // Open or close the menu
+        this.menu.toggle();
 
         let menuItems = this.menu._getMenuItems();
         if (menuItems.length > 0) {
-            menuItems[0].grab_key_focus(); // Set focus to the first menu item
+            menuItems[0].grab_key_focus();
         }
     }
 
@@ -114,10 +110,11 @@ class TmuxIndicator extends PanelMenu.Button {
 });
 
 function _addKeybinding() {
-    if (keyBindingActive) return;  // Avoid re-adding the keybinding
+    if (keyBindingActive) return;
     let keybinding = 'tmux-indicator-shortcut';
     let accelerator = settings.get_strv(keybinding)[0];
-    if (!accelerator || accelerator == '') return; // No keybinding set
+    if (!accelerator || accelerator == '') return;
+
     Main.wm.addKeybinding(
         keybinding,
         settings,
@@ -129,37 +126,42 @@ function _addKeybinding() {
             }
         }
     );
-    keyBindingActive = true;  // Mark keybinding as active
+    keyBindingActive = true;
 }
 
 function _removeKeybinding() {
-    if (!keyBindingActive) return;  // Avoid removing if it's not active
+    if (!keyBindingActive) return;
     let keybinding = 'tmux-indicator-shortcut';
     Main.wm.removeKeybinding(keybinding);
-    keyBindingActive = false;  // Mark keybinding as inactive
+    keyBindingActive = false;
 }
 
-function init() {}
+export default class TmuxIndicatorExtension extends Extension {
+    enable() {
+        settings = this.getSettings('org.gnome.shell.extensions.tmux-indicator');
+        tmuxIndicator = new TmuxIndicator();
+        Main.panel.addToStatusArea('tmux-indicator', tmuxIndicator);
 
-function enable() {
-    settings = ExtensionUtils.getSettings('org.gnome.shell.extensions.tmux-indicator');
-    tmuxIndicator = new TmuxIndicator();
-    Main.panel.addToStatusArea('tmux-indicator', tmuxIndicator);
-
-    _addKeybinding();
-
-    // Watch for changes in the shortcut settings
-    settings.connect('changed::tmux-indicator-shortcut', () => {
-        _removeKeybinding();
         _addKeybinding();
-    });
-}
 
-function disable() {
-    if (tmuxIndicator) {
-        tmuxIndicator.destroy();
-        tmuxIndicator = null;
+        this._settingsConnection = settings.connect('changed::tmux-indicator-shortcut', () => {
+            _removeKeybinding();
+            _addKeybinding();
+        });
     }
-    _removeKeybinding();
-    settings = null;  // Nullify settings to prevent memory leaks
+
+    disable() {
+        if (this._settingsConnection) {
+            settings.disconnect(this._settingsConnection);
+            this._settingsConnection = null;
+        }
+
+        if (tmuxIndicator) {
+            tmuxIndicator.destroy();
+            tmuxIndicator = null;
+        }
+
+        _removeKeybinding();
+        settings = null;
+    }
 }

@@ -1,61 +1,53 @@
-const { GObject, Gio, Gtk } = imports.gi;
-const ExtensionUtils = imports.misc.extensionUtils;
+import GObject from 'gi://GObject';
+import Gio from 'gi://Gio';
+import Gtk from 'gi://Gtk';
+import Adw from 'gi://Adw';
 
-function init() {}
+import {ExtensionPreferences} from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
-function buildPrefsWidget() {
-    const settings = ExtensionUtils.getSettings('org.gnome.shell.extensions.tmux-indicator');
+export default class TmuxIndicatorPreferences extends ExtensionPreferences {
+    fillPreferencesWindow(window) {
+        const settings = this.getSettings('org.gnome.shell.extensions.tmux-indicator');
 
-    const widget = new Gtk.Box({ orientation: Gtk.Orientation.VERTICAL, spacing: 10 });
+        const page = new Adw.PreferencesPage();
+        const group = new Adw.PreferencesGroup({
+            title: 'Tmux Indicator Settings',
+            description: 'Configure terminal emulator and keyboard shortcut',
+        });
+        page.add(group);
 
-    // Terminal emulator entry
-    const terminalLabel = new Gtk.Label({ label: "Terminal Emulator:", halign: Gtk.Align.START });
-    terminalLabel.set_margin_top(10);
-    terminalLabel.set_margin_bottom(5);
+        // Terminal emulator row
+        const terminalRow = new Adw.EntryRow({
+            title: 'Terminal Emulator',
+        });
+        terminalRow.set_text(settings.get_string('terminal-emulator'));
+        terminalRow.connect('changed', (entry) => {
+            settings.set_string('terminal-emulator', entry.get_text());
+        });
+        group.add(terminalRow);
 
-    const terminalEntry = new Gtk.Entry({ text: settings.get_string('terminal-emulator') });
-    terminalEntry.set_margin_bottom(10);
+        // Terminal command flag row
+        const flagRow = new Adw.EntryRow({
+            title: 'Terminal Command Flag',
+        });
+        flagRow.set_text(settings.get_string('terminal-command-flag'));
+        flagRow.connect('changed', (entry) => {
+            settings.set_string('terminal-command-flag', entry.get_text());
+        });
+        group.add(flagRow);
 
-    terminalEntry.connect('changed', (entry) => {
-        settings.set_string('terminal-emulator', entry.text);
-    });
+        // Keyboard shortcut row
+        const shortcutRow = new Adw.EntryRow({
+            title: 'Keyboard Shortcut',
+        });
+        const currentShortcut = settings.get_strv('tmux-indicator-shortcut')[0] || '';
+        shortcutRow.set_text(currentShortcut);
+        shortcutRow.connect('changed', (entry) => {
+            const newShortcut = entry.get_text().trim();
+            settings.set_strv('tmux-indicator-shortcut', [newShortcut]);
+        });
+        group.add(shortcutRow);
 
-    // Terminal command flag entry
-    const flagLabel = new Gtk.Label({ label: "Terminal Command Flag:", halign: Gtk.Align.START });
-    flagLabel.set_margin_top(10);
-    flagLabel.set_margin_bottom(5);
-
-    const flagEntry = new Gtk.Entry({ text: settings.get_string('terminal-command-flag') });
-    flagEntry.set_margin_bottom(10);
-
-    flagEntry.connect('changed', (entry) => {
-        settings.set_string('terminal-command-flag', entry.text);
-    });
-
-    // Keyboard shortcut entry
-    const shortcutLabel = new Gtk.Label({ label: "Keyboard Shortcut:", halign: Gtk.Align.START });
-    shortcutLabel.set_margin_top(10);
-    shortcutLabel.set_margin_bottom(5);
-
-    const currentShortcut = settings.get_strv('tmux-indicator-shortcut')[0] || '';
-
-    const shortcutEntry = new Gtk.Entry({ text: currentShortcut });
-    shortcutEntry.set_margin_bottom(10);
-
-    shortcutEntry.connect('changed', (entry) => {
-        const newShortcut = entry.text.trim();
-        settings.set_strv('tmux-indicator-shortcut', [newShortcut]);
-    });
-
-    widget.append(terminalLabel);
-    widget.append(terminalEntry);
-    widget.append(flagLabel);
-    widget.append(flagEntry);
-    widget.append(shortcutLabel);
-    widget.append(shortcutEntry);
-
-    return widget;
+        window.add(page);
+    }
 }
-
-// Export the buildPrefsWidget function
-var buildPrefsWidget = buildPrefsWidget;
